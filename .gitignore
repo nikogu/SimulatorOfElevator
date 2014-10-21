@@ -1,0 +1,11 @@
+de_modules
+dist
+.tmp
+.sass-cache
+app/components
+.idea
+*.iml
+*.log
+.bat
+.DS_Store
+.bower
