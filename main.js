@@ -19,4 +19,9 @@ seajs.use('./modules/elevator', function(Elevator) {
     });
     theElevator.render($('.wrapper'));
 
+    $('.call-list li').on('click', function(e) {
+        var index = $(e.target).html()*1;
+        theElevator.call(index, 'up');
+    });
+
 });

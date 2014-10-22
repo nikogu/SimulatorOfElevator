@@ -26,8 +26,14 @@ define(function (require, exports, module) {
         this.distance = 0;
         this.speed = 2;
         this.callbacks = [];
-        this.calllist = [];
+
+        this.calllist = {
+            up: [],
+            down: []
+        };
+
         this.status = 'stop';
+        this.isCallReversal = false;
 
         this.moveTimmer = 0;
         this.doorTimmer = 0
@@ -107,15 +113,38 @@ define(function (require, exports, module) {
                     clearInterval(this.moveTimmer);
                     this.status = 'stop';
 
-                    this.cancelTrigger(this.nextFloor);
+                    this._cancelTrigger(this.nextFloor);
+
+                    if (this.isCallReversal) {
+                        if (this.moveDir == 'up') {
+                            this.cancelCall(this.nextFloor, 'down');
+                        } else if (this.moveDir == 'down') {
+                            this.cancelCall(this.nextFloor, 'up');
+                        }
+                        this.isCallReversal = false;
+                    } else {
+                        this.cancelCall(this.nextFloor, this.moveDir);
+                    }
+
+                    if (this.targetFloors.length < 1) {
+                        if (this.moveDir == 'up') {
+                            this._triggerCallList('down', 'up');
+                        } else if (this.moveDir == 'down') {
+                            this._triggerCallList('up', 'down');
+                        }
+                        this.moveDir = '';
+                    } else {
+                        // open door
+                        // close door
+                        // and keep moving
+                        this._goon();
+                    }
 
                     //this.nextFloor may be undefined
                     try {
                         this.callbacks[this.nextFloor].call(this);
                     } catch (e) {
-
                     }
-                    this._goon();
 
                     return;
                 }
@@ -160,13 +189,40 @@ define(function (require, exports, module) {
             //move elevator
             this._move(floorNum, callback);
 
+        },
+        _cancelTrigger: function (floorNum) {
+            Util.arrayRemove(this.targetFloors, floorNum);
+
+            //
+            this.panelViewNode.find('li').eq(floorNum - 1).removeClass('active');
+        },
+        _triggerCallList: function (type1, type2) {
+            try {
+                if (this.calllist[type1].length < 1) {
+                    this.isCallReversal = true;
+                    this.calllist[type2].sort(function (a, b) {
+                        return  a > b;
+                    });
+                    if (type2 == 'up') {
+                        this.go(this.calllist[type2][0]);
+                    } else if (type2 == 'down') {
+                        this.go(this.calllist[type2][this.calllist[type2].length-1]);
+                    }
+                } else {
+                    this.isCallReversal = false;
+                    for (var i = this.calllist[type1].length; i--;) {
+                        this.go(this.calllist[type1][i]);
+                    }
+                }
+            } catch (e) {
+
+            }
         }
     });
 
     //public method
     Util.method(Elevator, {
         go: function (floorNum) {
-            console.log(this.status);
             if (this.status == 'stop') {
                 this.openDoor(function () {
                     this.closeDoor(function () {
@@ -201,16 +257,22 @@ define(function (require, exports, module) {
             }, 500);
         },
         call: function (floorNum, type) {
-            this.calllist.push({
-                floor: floorNum,
-                type: type
-            });
+            console.log(floorNum);
+            if (floorNum > this.currentFloor && type == 'up' && this.moveDir == 'up' ||
+                floorNum < this.currentTarget && type == 'down' && this.moveDir == 'down' ||
+                this.moveDir == '' && this.status == 'stop' ||
+                this.targetFloors.length < 1) {
+                this.go(floorNum);
+            } else {
+                if (Util.arrayGetIndex(this.calllist[type], floorNum) == undefined) {
+                    this.calllist[type].push(floorNum);
+                }
+            }
         },
-        cancelTrigger: function (floorNum) {
-            Util.arrayRemove(this.targetFloors, floorNum);
-
-            //
-            this.panelViewNode.find('li').eq(floorNum - 1).removeClass('active');
+        cancelCall: function (floorNum, type) {
+            console.log(floorNum, type);
+            Util.arrayRemove(this.calllist[type], floorNum);
+            console.log(this.calllist);
         },
         render: function (node) {
             if (node) {

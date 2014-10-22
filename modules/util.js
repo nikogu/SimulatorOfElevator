@@ -25,6 +25,9 @@ define(function (require, exports, module) {
             }
         },
         arrayGetIndex: function(arr, item) {
+            if ( !arr || !arr.length ) {
+                return undefined;
+            }
             for ( var i = arr.length; i--; ) {
                 if ( arr[i] == item ) {
                     return i;
