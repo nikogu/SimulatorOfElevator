@@ -1,0 +1,59 @@
+@import 'global.less';
+
+//
+.wrapper {
+    display: block;
+    position: relative;
+    height: 600px;
+}
+
+//elevator
+.elevator-panel {
+
+    ul {
+        background-color: #fffff0;
+        border: 1px solid #dddddd;
+        padding: 10px;
+        margin: 0;
+        width: 180px;
+        li {
+            border: 1px solid #fffff5;
+            cursor: pointer;
+            display: inline-block;
+            list-style-type: none;
+            width: 28px;
+            height: 28px;
+            line-height: 28px;
+            text-align: center;
+            &:hover {
+                background-color: #eeeeee;
+            }
+        }
+        .active {
+            border: 1px solid darkred;
+        }
+    }
+}
+
+.elevator {
+    border: 2px solid #aaaaaa;
+    display: block;
+    overflow: hidden;
+    position: absolute;
+    left: 50%;
+    bottom: 0;
+    width: 36px;
+    height: 40px;
+    i {
+        background-color: #dddddd;
+        display: block;
+        position: absolute;
+        width: 50%;
+        left: -1px;
+        height: 100%;
+    }
+    .r {
+        left: auto;
+        right: 0px;
+    }
+}
