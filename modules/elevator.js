@@ -9,14 +9,20 @@ define(function (require, exports, module) {
 
     var Util = require('./util');
 
+    //the elevator class
     function Elevator(o) {
 
+        //copy the property
         for (var prop in o || {}) {
             if (o.hasOwnProperty(prop)) {
                 this[prop] = o[prop];
             }
         }
 
+        //jquery event extend
+        this.e = $({});
+
+        //random id
         this.id = Math.floor(Math.random() * 4000) + Math.floor(Math.random() * 5000) + new Date().getTime();
 
         this.currentFloor = 1;
@@ -33,10 +39,8 @@ define(function (require, exports, module) {
         };
 
         this.status = 'stop';
-        this.isCallReversal = false;
 
         this.moveTimmer = 0;
-        this.doorTimmer = 0
 
         this.height = this.height || 40;
         this.width = this.width || 36;
@@ -51,17 +55,34 @@ define(function (require, exports, module) {
             if (this.targetFloors.length < 1) {
                 return;
             }
+            if (this.targetFloors.length == 1) {
+                this.nextFloor = this.targetFloors[0];
+                if (this.nextFloor > this.currentFloor) {
+                    this.moveDir = 'up';
+                    this._triggerCallList(this.moveDir);
+                } else if (this.nextFloor < this.currentFloor) {
+                    this.moveDir = 'down';
+                    this._triggerCallList(this.moveDir);
+                } else {
+                    this.moveDir = '';
+                }
+                return;
+            }
             if (this.moveDir == 'up') {
-                //has bug
+
                 this.nextFloor = Util.arrayGetNext(this.targetFloors, this.currentFloor);
                 if (this.nextFloor == undefined) {
                     this.moveDir = 'down';
+                    this._triggerCallList(this.moveDir);
                     this._setTargetFloor();
                 }
             } else if (this.moveDir == 'down') {
+                if (this.nextFloor == this.currentFloor) {
+                }
                 this.nextFloor = Util.arrayGetPrev(this.targetFloors, this.currentFloor);
                 if (this.nextFloor == undefined) {
                     this.moveDir = 'up';
+                    this._triggerCallList(this.moveDir);
                     this._setTargetFloor();
                 }
             } else {
@@ -72,16 +93,14 @@ define(function (require, exports, module) {
                 } else if (this.nextFloor < this.currentFloor) {
                     this.moveDir = 'down';
                 } else {
-
+                    this.moveDir = '';
                 }
             }
         },
         _goon: function () {
             this.openDoor(function () {
                 this.closeDoor(function () {
-                    if (this.targetFloors.length > 0) {
-                        this._move();
-                    }
+                    this._move();
                 });
             });
         },
@@ -98,46 +117,29 @@ define(function (require, exports, module) {
             //update the elevator status
             this.status = 'run';
 
-            var targetDis,
-                tempFloor;
+            var targetDis;
+
             this.moveTimmer = setInterval(Util.proxy(function () {
                 targetDis = (this.nextFloor - 1) * this.floorHeight;
-
                 //check the distance to stop elevator
                 if (Math.abs(targetDis - this.distance) < this.speed) {
                     this.distance = targetDis;
-
-                    //update view
-                    this.render();
 
                     clearInterval(this.moveTimmer);
                     this.status = 'stop';
 
                     this._cancelTrigger(this.nextFloor);
+                    //this.cancelCall(this.currentFloor, this.moveDir);
 
-                    if (this.isCallReversal) {
-                        if (this.moveDir == 'up') {
-                            this.cancelCall(this.nextFloor, 'down');
-                        } else if (this.moveDir == 'down') {
-                            this.cancelCall(this.nextFloor, 'up');
-                        }
-                        this.isCallReversal = false;
-                    } else {
-                        this.cancelCall(this.nextFloor, this.moveDir);
-                    }
-
-                    if (this.targetFloors.length < 1) {
-                        if (this.moveDir == 'up') {
-                            this._triggerCallList('down', 'up');
-                        } else if (this.moveDir == 'down') {
-                            this._triggerCallList('up', 'down');
-                        }
-                        this.moveDir = '';
-                    } else {
-                        // open door
-                        // close door
-                        // and keep moving
+                    if (this.targetFloors.length > 0) {
                         this._goon();
+                    } else {
+                        if ( this.moveDir == 'up' ) {
+                            this._triggerCallList('up', 'down');
+                        } else if ( this.moveDir == 'down' ) {
+                            this._triggerCallList('down', 'up');
+                        } else {
+                        }
                     }
 
                     //this.nextFloor may be undefined
@@ -145,6 +147,9 @@ define(function (require, exports, module) {
                         this.callbacks[this.nextFloor].call(this);
                     } catch (e) {
                     }
+
+                    //update view
+                    this.render();
 
                     return;
                 }
@@ -198,20 +203,21 @@ define(function (require, exports, module) {
         },
         _triggerCallList: function (type1, type2) {
             try {
-                if (this.calllist[type1].length < 1) {
-                    this.isCallReversal = true;
+                if (this.calllist[type1].length < 1 && type2) {
                     this.calllist[type2].sort(function (a, b) {
                         return  a > b;
                     });
                     if (type2 == 'up') {
                         this.go(this.calllist[type2][0]);
+                        this.cancelCall(this.calllist[type2][0], type2);
                     } else if (type2 == 'down') {
-                        this.go(this.calllist[type2][this.calllist[type2].length-1]);
+                        this.go(this.calllist[type2][this.calllist[type2].length - 1]);
+                        this.cancelCall(this.calllist[type2][this.calllist[type2].length - 1], type2);
                     }
                 } else {
-                    this.isCallReversal = false;
                     for (var i = this.calllist[type1].length; i--;) {
                         this.go(this.calllist[type1][i]);
+                        this.cancelCall(this.calllist[type1][i], type1);
                     }
                 }
             } catch (e) {
@@ -257,12 +263,12 @@ define(function (require, exports, module) {
             }, 500);
         },
         call: function (floorNum, type) {
-            console.log(floorNum);
             if (floorNum > this.currentFloor && type == 'up' && this.moveDir == 'up' ||
-                floorNum < this.currentTarget && type == 'down' && this.moveDir == 'down' ||
+                floorNum < this.currentFloor && type == 'down' && this.moveDir == 'down' ||
                 this.moveDir == '' && this.status == 'stop' ||
                 this.targetFloors.length < 1) {
                 this.go(floorNum);
+                this.cancelCall(floorNum, type);
             } else {
                 if (Util.arrayGetIndex(this.calllist[type], floorNum) == undefined) {
                     this.calllist[type].push(floorNum);
@@ -270,9 +276,11 @@ define(function (require, exports, module) {
             }
         },
         cancelCall: function (floorNum, type) {
-            console.log(floorNum, type);
+//            this.e.trigger('cancel-call', {
+//                floorNum: floorNum,
+//                type: type
+//            });
             Util.arrayRemove(this.calllist[type], floorNum);
-            console.log(this.calllist);
         },
         render: function (node) {
             if (node) {
@@ -288,6 +296,7 @@ define(function (require, exports, module) {
 
                 //elevator view
                 this.view = [
+                        '<div id="light-' + this.id + '" class="light"></div>',
                         '<div id="elevator-' + this.id + '" class="elevator">',
                     '<i class="l"></i>',
                     '<i class="r"></i>',
@@ -299,17 +308,19 @@ define(function (require, exports, module) {
 
                 this.viewNode = $('#elevator-' + this.id);
                 this.panelViewNode = $('#elevator-panel-' + this.id);
+                this.lightNode = $('#light-' + this.id);
                 this.ldoorNode = this.viewNode.find('i.l');
                 this.rdoorNode = this.viewNode.find('i.r');
 
                 this.panelViewNode.on('click', Util.proxy(function (e) {
-                    console.log('trigger' + ($(e.target).html() * 1));
                     this.go($(e.target).html() * 1 || undefined);
                 }, this));
 
             } else {
 
+                //update
                 this.viewNode.css('bottom', this.distance);
+                this.lightNode.html(this.moveDir.toLocaleUpperCase());
 
             }
         }

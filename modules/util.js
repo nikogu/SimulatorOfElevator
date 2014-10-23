@@ -8,11 +8,11 @@
 define(function (require, exports, module) {
 
     var Util = {
-        isNumber: function(val) {
+        isNumber: function (val) {
             return Object.prototype.toString.call(val) === '[object Number]';
         },
-        proxy: function(fn, context) {
-            return function() {
+        proxy: function (fn, context) {
+            return function () {
                 fn.apply(context, arguments);
             }
         },
@@ -24,49 +24,49 @@ define(function (require, exports, module) {
                 }
             }
         },
-        arrayGetIndex: function(arr, item) {
-            if ( !arr || !arr.length ) {
+        arrayGetIndex: function (arr, item) {
+            if (!arr || !arr.length) {
                 return undefined;
             }
-            for ( var i = arr.length; i--; ) {
-                if ( arr[i] == item ) {
+            for (var i = arr.length; i--;) {
+                if (arr[i] == item) {
                     return i;
                 }
             }
             return undefined;
         },
-        arrayRemove: function(arr, item) {
+        arrayRemove: function (arr, item) {
             var index = Util.arrayGetIndex(arr, item);
-            if ( index != undefined ) {
+            if (index != undefined) {
                 arr.splice(index, 1);
             }
         },
-        arrayGetNext: function(arr, item) {
-            if ( arr.length < 1 ) {
+        arrayGetNext: function (arr, item) {
+            if (arr.length < 1) {
                 return undefined;
             }
             var index = Util.arrayGetIndex(arr, item);
-            if ( index !=undefined && arr[index+1] ) {
-                return arr[index+1];
+            if (index != undefined && arr[index + 1]) {
+                return arr[index + 1];
             } else {
-                for (var i = 0; i< arr.length; i++) {
-                    if ( arr[i] > item ) {
+                for (var i = 0; i < arr.length; i++) {
+                    if (arr[i] >= item) {
                         return arr[i];
                     }
                 }
                 return undefined;
             }
         },
-        arrayGetPrev: function(arr, item) {
-            if ( arr.length < 1 ) {
+        arrayGetPrev: function (arr, item) {
+            if (arr.length < 1) {
                 return undefined;
             }
             var index = Util.arrayGetIndex(arr, item);
-            if ( index !=undefined && arr[index-1] ) {
-                return arr[index-1];
+            if (index != undefined && arr[index - 1]) {
+                return arr[index - 1];
             } else {
                 for (var i = arr.length; i--;) {
-                    if ( arr[i] < item ) {
+                    if (arr[i] <= item) {
                         return arr[i];
                     }
                 }
@@ -75,5 +75,5 @@ define(function (require, exports, module) {
         }
     };
 
-    module.exports= Util;
+    module.exports = Util;
 });
