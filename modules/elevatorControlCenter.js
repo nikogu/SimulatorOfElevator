@@ -79,15 +79,7 @@ define(function (require, exports, module) {
                         that.clearCall(o.currentFloor, 'up');
                         that.clearCall(o.currentFloor, 'down');
 
-                        var status = true;
-                        that.elevators.forEach(function(item, index) {
-                            if ( item.status != 'stop' ) {
-                                status = false;
-                            }
-                        });
-                        if ( status ) {
-                            that._manageCall();
-                        }
+                        that._manageCall();
                     });
 
                     buildingNode.find('.floor .up').on('click', Util.proxy(that.callElevator, that));
@@ -172,7 +164,7 @@ define(function (require, exports, module) {
         clearCall: function (floorNum, moveDir) {
             var that = this;
 
-            if ( !moveDir ) {
+            if (!moveDir) {
                 that.clearCall(floorNum, 'down');
                 that.clearCall(floorNum, 'up');
                 return;
