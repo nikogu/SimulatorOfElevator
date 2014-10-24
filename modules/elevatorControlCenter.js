@@ -21,7 +21,10 @@ define(function (require, exports, module) {
         this.elevatorWidth = 36;
         this.elevatorheight = 40;
 
-        this.calllist = [];
+        this.calllist = {
+            up: [],
+            down: []
+        };
 
         this.id = Math.floor(Math.random() * 4000) + Math.floor(Math.random() * 5000) + new Date().getTime();
 
@@ -47,22 +50,151 @@ define(function (require, exports, module) {
             console.log(' * Elevator is running ! * ');
 
         },
-        _access: function () {
-
+        _addToCallList: function (index, type) {
+            if (Util.arrayGetIndex(this.calllist[type], index) === undefined) {
+                this.calllist[type].push(index);
+            }
         },
-        _disboard: function () {
+        _removeFromCallList: function (index, type) {
+            Util.arrayRemove(this.calllist[type], index);
+        },
+        _initEvent: function () {
+            var that = this,
+                buildingNode;
+
+            //init elevator
+            for (var i = 0; i < this.elevators.length; i++) {
+                (function (i) {
+                    buildingNode = that.buildingNode.eq(i);
+
+                    //elevator event
+                    that.elevators[i].render(buildingNode);
+                    that.elevators[i].e.on('arrive', function (e, o) {
+                        that.clearCall(o.nextFloor, o.moveDir);
+                    });
+                    that.elevators[i].e.on('moving', function (e, o) {
+                        that.clearCall(o.prevFloor, o.moveDir);
+                    });
+                    that.elevators[i].e.on('stop', function (e, o) {
+                        that.clearCall(o.currentFloor, 'up');
+                        that.clearCall(o.currentFloor, 'down');
+                    });
+
+                    buildingNode.find('.floor .up').on('click', Util.proxy(that.callElevator, that));
+
+                    buildingNode.find('.floor .down').on('click', Util.proxy(that.callElevator, that));
+
+                })(i);
+            }
+        },
+        _selectElevator: function (floor, type) {
+
+            var elevator,
+                theElevators = [];
+
+            for (var i = 0; i < this.elevators.length; i++) {
+                elevator = this.elevators[i];
+                if (elevator.moveDir == type) {
+                    if (type == 'up' && elevator.currentFloor < floor) {
+                        theElevators.push(elevator);
+                    } else if (type == 'down' && elevator.currentFloor > floor) {
+                        theElevators.push(elevator);
+                    }
+                } else if (elevator.status == 'stop' &&
+                    elevator.targetFloors.length < 1) {
+                    theElevators.push(elevator);
+                }
+            }
+            if (theElevators.length == 1) {
+                return theElevators[0];
+            }
+            //which elevator that is closed to the floor
+            if (theElevators.length > 1) {
+                theElevators.sort(function (a, b) {
+                    return Math.abs(a.currentFloor - floor) > Math.abs(b.currentFloor - floor)
+                });
+                return theElevators[0];
+            }
+
+            return undefined;
+        },
+        _manageCall: function () {
+            var that = this;
+
+            if (that.calllist.up.length < 1 &&
+                that.calllist.down.length < 1) {
+                return;
+            }
+
+            var elevator;
+
+            //up list
+            for (var i = 0; i < that.calllist.up.length; i++) {
+                elevator = that._selectElevator(that.calllist.up[i], 'up');
+                if (elevator) {
+                    elevator._addToTargetList(that.calllist.up[i], false, function () {
+                        that._removeFromCallList(that.calllist.up[i], 'up');
+                    });
+                    if (elevator.moveDir == '' && elevator.status == 'stop' ||
+                        elevator.targetFloors.length == 1) {
+                        elevator.move();
+                    }
+                }
+            }
+
+            //down list
+            for (var j = 0; j < that.calllist.down.length; j++) {
+                elevator = that._selectElevator(that.calllist.down[j], 'down');
+                if (elevator) {
+                    elevator._addToTargetList(that.calllist.down[j], false, function () {
+                        that._removeFromCallList(that.calllist.down[j], 'down');
+                    });
+                    if (elevator.moveDir == '' && elevator.status == 'stop' ||
+                        elevator.targetFloors.length == 1) {
+                        elevator.move();
+                    }
+                }
+            }
 
         }
     });
 
     //public method
     Util.method(ElevatorControlCenter, {
+        clearCall: function (floorNum, moveDir) {
+            var that = this;
+            if ( !moveDir ) {
+                return;
+            }
+            that.viewNode.find('.building').each(function (index, item) {
+                $(item).find('.floor').
+                    eq(that.floors - floorNum).
+                    find('.' + moveDir).removeClass('active');
+            });
+        },
+        callElevator: function (e) {
+            var that = this;
+
+            var target = $(e.target),
+                floorIndex = target.attr('data-index') * 1,
+                type = target.attr('data-type');
+
+            that._addToCallList(floorIndex, type);
+
+            that._manageCall();
+
+            that.viewNode.find('.building').each(function (index, item) {
+                $(item).find('.floor').
+                    eq(that.floors - floorIndex).
+                    find('.' + type).addClass('active');
+            });
+        },
         render: function (node) {
             var that = this;
 
             var html = '<div id="elevator-control-center-' + this.id + '" class="control-center">';
 
-            for (var i = this.elevators.length; i--;) {
+            for (var i = 0; i < this.elevators.length; i++) {
                 html += '<div class="building">';
                 for (var j = this.floors; j--;) {
                     html += '<div class="floor">';
@@ -70,8 +202,8 @@ define(function (require, exports, module) {
                     html += '<div class="door"></div>';
                     html += '<div class="cover"></div>';
                     html += '<div class="control">';
-                    html += '<i class="up" data-type="up" data-index="' + (j + 1) + '"></i>';
-                    html += '<i class="down" data-type="down" data-index="' + (j + 1) + '"></i>';
+                    html += '<i class="up" data-build="' + i + '" data-type="up" data-index="' + (j + 1) + '"></i>';
+                    html += '<i class="down" data-build="' + i + '" data-type="down" data-index="' + (j + 1) + '"></i>';
                     html += '</div>';
                     html += '</div>';
                 }
@@ -90,36 +222,9 @@ define(function (require, exports, module) {
             node.append(html);
 
             this.viewNode = $('#elevator-control-center-' + this.id);
-            var buildingNode = this.viewNode.find('.building');
-            for (var i = 0; i < this.elevators.length; i++) {
-                (function (i) {
+            this.buildingNode = this.viewNode.find('.building');
 
-                    that.elevators[i].render(buildingNode.eq(i));
-
-                    that.elevators[i].e.on('cancel-call', function (e, o) {
-                        if (Util.isNumber(o.floorNum) && o.type) {
-                            buildingNode.eq(i).find('.floor').eq(that.floors - o.floorNum).find('.' + $.trim(o.type)).removeClass('active');
-                        }
-                    });
-
-                    buildingNode.eq(i).find('.floor .up').on('click', function (e) {
-                        var target = $(e.target),
-                            index = target.attr('data-index') * 1;
-
-                        target.addClass('active');
-                        that.elevators[i].call(index, 'up');
-                    });
-
-                    buildingNode.eq(i).find('.floor .down').on('click', function (e) {
-                        var target = $(e.target),
-                            index = target.attr('data-index') * 1;
-
-                        target.addClass('active');
-                        that.elevators[i].call(index, 'down');
-                    });
-
-                })(i);
-            }
+            this._initEvent();
 
         }
     });

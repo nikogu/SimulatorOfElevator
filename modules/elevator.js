@@ -27,6 +27,7 @@ define(function (require, exports, module) {
 
         this.currentFloor = 1;
         this.targetFloors = [];
+        this.checkCallList = [];
 
         this.moveDir = '';
         this.distance = 0;
@@ -48,6 +49,13 @@ define(function (require, exports, module) {
         this.width = this.width || 36;
         this.doorWidth = this.width / 2;
         this.floorHeight = this.floorHeight || this.height + 10;
+
+        this.e.on('moving', Util.proxy(function(e, o) {
+//            this.movingCallback ? this.movingCallback.call(this) : 1;
+        }, this));
+        this.e.on('arrive', Util.proxy(function(e, o) {
+//            this.arriveCallback ? this.arriveCallback.call(this) : 1;
+        }, this));
 
     }
 
@@ -119,103 +127,9 @@ define(function (require, exports, module) {
             this.openDoor(function () {
                 this.closeDoor(function () {
                     this._setTargetFloor();
-                    this._move();
+                    this.move();
                 });
             });
-        },
-        _move: function () {
-
-            if (!this.nextFloor || this.status != 'stop') {
-                return;
-            }
-            //update the elevator status
-            this.status = 'run';
-
-            var targetDis;
-
-            this.moveTimmer = setInterval(Util.proxy(function () {
-
-                targetDis = (this.nextFloor - 1) * this.floorHeight;
-
-                //check the distance to stop elevator
-                if (Math.abs(targetDis - this.distance) < this.speed) {
-
-                    this.distance = targetDis;
-
-                    clearInterval(this.moveTimmer);
-                    this.status = 'stop';
-
-                    this._cancelTrigger(this.nextFloor);
-                    this.prevFloor = this.nextFloor;
-
-                    //clear the call class
-                    this.e.trigger('cancel-call', {
-                        floorNum: this.nextFloor,
-                        type: this.moveDir
-                    });
-
-                    //set the next step
-                    if (this.targetFloors.length > 0) {
-                        this._goon();
-
-                    } else {
-                        if (this.moveDir == 'up') {
-                            this._triggerCallList('down');
-                        } else if (this.moveDir == 'down') {
-                            this._triggerCallList('up');
-                        } else {
-                        }
-
-                        if (this.targetFloors.length > 0) {
-                            this._goon();
-
-                        } else {
-                            //if there is no floor to goon
-                            //need open the door...
-                            //clear the call class
-                            this.e.trigger('cancel-call', {
-                                floorNum: this.prevFloor,
-                                type: 'up'
-                            });
-                            this.e.trigger('cancel-call', {
-                                floorNum: this.prevFloor,
-                                type: 'down'
-                            });
-
-                            this.moveDir = '';
-                            this.openDoor(function () {
-                                this.closeDoor();
-                            });
-                        }
-                    }
-
-                    //clear the call class
-                    this.e.trigger('cancel-call', {
-                        floorNum: this.prevFloor,
-                        type: this.moveDir
-                    });
-
-                    //update view
-                    this.render();
-
-                    return;
-                }
-
-                //move it
-                if (targetDis > this.distance) {
-                    this.distance += this.speed;
-                } else {
-                    this.distance -= this.speed;
-                }
-
-                //update currentFloor
-                this.currentFloor = Math.floor(this.distance / this.floorHeight) + 1;
-
-                //update view
-                this.render();
-
-            }, this), 50);
-
         },
         _addToTargetList: function (floorNum, callback, callbackPrev) {
 
@@ -251,7 +165,7 @@ define(function (require, exports, module) {
         _trigger: function (floorNum) {
 
             this._addToTargetList(floorNum, function () {
-                this._move();
+                this.move();
             });
 
         },
@@ -283,7 +197,125 @@ define(function (require, exports, module) {
 
     //public method
     Util.method(Elevator, {
+        move: function () {
+            this.e.trigger('moving', {
+                nextFloor: this.nextFloor,
+                prevFloor: this.prevFloor,
+                currentFloor: this.currentFloor,
+                moveDir: this.moveDir
+            });
+
+            if (!this.nextFloor || this.status != 'stop') {
+                return;
+            }
+            //update the elevator status
+            this.status = 'run';
+
+            var targetDis;
+
+            this.moveTimmer = setInterval(Util.proxy(function () {
+
+                targetDis = (this.nextFloor - 1) * this.floorHeight;
+
+                //check the distance to stop elevator
+                if (Math.abs(targetDis - this.distance) < this.speed) {
+
+                    this.prevFloor = this.nextFloor;
+
+                    this.e.trigger('arrive', {
+                        nextFloor: this.nextFloor,
+                        prevFloor: this.prevFloor,
+                        currentFloor: this.currentFloor,
+                        moveDir: this.moveDir
+                    });
+
+                    this.distance = targetDis;
+
+                    clearInterval(this.moveTimmer);
+                    this.status = 'stop';
+
+                    this._cancelTrigger(this.nextFloor);
+
+                    //clear the call class
+                    this.e.trigger('cancel-call', {
+                        floorNum: this.nextFloor,
+                        type: this.moveDir
+                    });
+
+                    //set the next step
+                    if (this.targetFloors.length > 0) {
+                        this._goon();
+
+                    } else {
+                        if (this.moveDir == 'up') {
+                            this._triggerCallList('down');
+                        } else if (this.moveDir == 'down') {
+                            this._triggerCallList('up');
+                        } else {
+                        }
+
+                        if (this.targetFloors.length > 0) {
+                            this._goon();
+
+                        } else {
+                            //if there is no floor to goon
+                            //need open the door...
+                            //clear the call class
+                            this.e.trigger('cancel-call', {
+                                floorNum: this.prevFloor,
+                                type: 'up'
+                            });
+                            this.e.trigger('cancel-call', {
+                                floorNum: this.prevFloor,
+                                type: 'down'
+                            });
+
+                            this.e.trigger('stop', {
+                                nextFloor: this.nextFloor,
+                                prevFloor: this.prevFloor,
+                                currentFloor: this.currentFloor,
+                                moveDir: this.moveDir
+                            });
+                            this.moveDir = '';
+                            this.openDoor(function () {
+                                this.closeDoor();
+                            });
+                        }
+                    }
+
+                    //clear the call class
+                    this.e.trigger('cancel-call', {
+                        floorNum: this.prevFloor,
+                        type: this.moveDir
+                    });
+
+                    //update view
+                    this.render();
+
+                    return;
+                }
+
+                //move it
+                if (targetDis > this.distance) {
+                    this.distance += this.speed;
+                } else {
+                    this.distance -= this.speed;
+                }
+
+                //update currentFloor
+                this.currentFloor = Math.floor(this.distance / this.floorHeight) + 1;
+
+                //update view
+                this.render();
+
+            }, this), 50);
+
+        },
+
         go: function (floorNum) {
+            if ( this.currentFloor == floorNum ) {
+                return;
+            }
             if (this.status == 'stop') {
                 this.openDoor(function () {
                     this.closeDoor(function () {
@@ -318,6 +350,8 @@ define(function (require, exports, module) {
             }, 500);
         },
         call: function (floorNum, type) {
+            //debug
+            return;
             if (floorNum > this.currentFloor && type == 'up' && this.moveDir == 'up' ||
                 floorNum < this.currentFloor && type == 'down' && this.moveDir == 'down' ||
                 this.moveDir == '' && this.status == 'stop' ||
@@ -328,7 +362,7 @@ define(function (require, exports, module) {
                 //first call & no target
                 if (this.moveDir == '' && this.status == 'stop' ||
                     this.targetFloors.length == 1) {
-                    this._move();
+                    this.move();
                 }
             } else {
                 if (Util.arrayGetIndex(this.calllist[type], floorNum) == undefined) {
@@ -344,6 +378,7 @@ define(function (require, exports, module) {
 
                 //panel view
                 this.panelView = '<div id="elevator-panel-' + this.id + '" class="elevator-panel">';
+                this.panelView += '<p>Control Panel</p>';
                 this.panelView += '<ul>';
                 for (var i = 0; i < this.floors; i++) {
                     this.panelView += '<li>' + (i + 1) + '</li>';
@@ -376,7 +411,6 @@ define(function (require, exports, module) {
                 this.panelViewNode.on('dblclick', Util.proxy(function (e) {
                     var floor = $(e.target).html() * 1;
                     if (Util.arrayGetIndex(this.targetFloors, floor) !== undefined && !Util.arrayOnlyLast(this.targetFloors, floor, this.currentFloor, this.moveDir) && !Util.arrayOnlyFirst(this.targetFloors, floor, this.currentFloor, this.moveDir)) {
-                        console.log('cancel');
                         this._cancelTrigger(floor);
                         this._setTargetFloor();
                     }

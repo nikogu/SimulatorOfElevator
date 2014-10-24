@@ -1,6 +1,11 @@
 .wrapper {
+  margin: 0 auto;
   display: block;
   position: relative;
+  width: 992px;
+}
+.wrapper h1 {
+  text-align: center;
 }
 .control-center {
   background: #eeeeee;
@@ -22,12 +27,20 @@
   height: 500px;
 }
 .control-center .building .elevator-panel {
-  background: #eeeeee;
+  background: #efefef;
+  border: 1px solid #dddddd;
   padding: 20px 10px;
   position: absolute;
   top: 100px;
   left: 0;
   width: 120px;
+}
+.control-center .building .elevator-panel p {
+  font-size: 12px;
+  padding: 0;
+  padding-bottom: 5px;
+  margin: 0;
+  text-align: center;
 }
 .control-center .building .elevator-panel ul {
   *zoom: 1;
@@ -43,6 +56,7 @@
   clear: both;
 }
 .control-center .building .elevator-panel ul li {
+  background-color: #dedede;
   border: 1px solid #ffffff;
   cursor: pointer;
   display: block;
@@ -117,7 +131,8 @@
   transform: rotate(90deg);
 }
 .control-center .building .floor .control i:hover {
-  background-color: #eeeeee;
+  background-color: darkred;
+  color: #ffffff;
 }
 .control-center .building .floor .control i:after {
   content: '<';
@@ -129,8 +144,8 @@
   content: '>';
 }
 .control-center .building .floor .control .active {
-  background-color: #dddddd;
-  color: darkred;
+  background-color: darkred;
+  color: #ffffff;
 }
 .light {
   background-color: #aaaaaa;

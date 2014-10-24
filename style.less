@@ -2,8 +2,13 @@
 
 //
 .wrapper {
+    margin: 0 auto;
     display: block;
     position: relative;
+    width: 992px;
+    h1 {
+        text-align: center;
+    }
 }
 
 //control-center
@@ -25,17 +30,26 @@
         width: 328px;
         height: 500px;
         .elevator-panel {
-            background: #eeeeee;
+            background: #efefef;
+            border: 1px solid #dddddd;
             padding: 20px 10px;
             position: absolute;
             top: 100px;
             left: 0;
             width: 120px;
+            p {
+                font-size: 12px;
+                padding: 0;
+                padding-bottom: 5px;
+                margin: 0;
+                text-align: center;
+            }
             ul {
                 .clearfix();
                 padding: 0;
                 margin: 0;
                 li {
+                    background-color: #dedede;
                     border: 1px solid #ffffff;
                     cursor: pointer;
                     display: block;
@@ -109,7 +123,8 @@
                     -webkit-transform: rotate(90deg);
                     transform: rotate(90deg);
                     &:hover {
-                        background-color: #eeeeee;
+                        background-color: darkred;
+                        color: #ffffff;
                     }
                     &:after {
                         content: '<';
@@ -122,8 +137,8 @@
                     }
                 }
                 .active {
-                    background-color: #dddddd;
-                    color: darkred;
+                    background-color: darkred;
+                    color: #ffffff;
                 }
             }
         }
