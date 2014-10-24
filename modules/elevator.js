@@ -1,8 +1,8 @@
 /**
- * Elevator
+ * The Elevator
  *
  * @author niko
- * @date
+ * @date 2014-10-21
  */
 
 define(function (require, exports, module) {
@@ -31,16 +31,18 @@ define(function (require, exports, module) {
         this.moveDir = '';
         this.distance = 0;
         this.speed = 2;
-        this.callbacks = [];
+        this.status = 'stop';
 
+        this.callbacks = [];
         this.calllist = {
             up: [],
             down: []
         };
 
-        this.status = 'stop';
-
         this.moveTimmer = 0;
+
+        this.nextFloor;
+        this.prevFloor;
 
         this.height = this.height || 40;
         this.width = this.width || 36;
@@ -51,38 +53,53 @@ define(function (require, exports, module) {
 
     //private method
     Util.method(Elevator, {
+        //********************************
+        //trigger the call list when
+        //1. at the top, call down list
+        //2. at the bottom, call up list
+        //********************************
         _setTargetFloor: function () {
+
             if (this.targetFloors.length < 1) {
                 return;
             }
+
             if (this.targetFloors.length == 1) {
                 this.nextFloor = this.targetFloors[0];
                 if (this.nextFloor > this.currentFloor) {
+                    if (this.moveDir == 'down') {
+                        this._triggerCallList('up');
+                    }
                     this.moveDir = 'up';
-                    this._triggerCallList(this.moveDir);
                 } else if (this.nextFloor < this.currentFloor) {
+                    if (this.moveDir == 'up') {
+                        this._triggerCallList('down');
+                    }
                     this.moveDir = 'down';
-                    this._triggerCallList(this.moveDir);
                 } else {
                     this.moveDir = '';
                 }
                 return;
             }
-            if (this.moveDir == 'up') {
 
+            if (this.moveDir == 'up') {
                 this.nextFloor = Util.arrayGetNext(this.targetFloors, this.currentFloor);
+
+                //next is none
+                //need check reversal
                 if (this.nextFloor == undefined) {
+                    this._triggerCallList('down');
                     this.moveDir = 'down';
-                    this._triggerCallList(this.moveDir);
                     this._setTargetFloor();
                 }
             } else if (this.moveDir == 'down') {
-                if (this.nextFloor == this.currentFloor) {
-                }
                 this.nextFloor = Util.arrayGetPrev(this.targetFloors, this.currentFloor);
+
+                //prev is none
+                //need check reversal
                 if (this.nextFloor == undefined) {
+                    this._triggerCallList('up');
                     this.moveDir = 'up';
-                    this._triggerCallList(this.moveDir);
                     this._setTargetFloor();
                 }
             } else {
@@ -96,20 +113,17 @@ define(function (require, exports, module) {
                     this.moveDir = '';
                 }
             }
+
         },
         _goon: function () {
             this.openDoor(function () {
                 this.closeDoor(function () {
+                    this._setTargetFloor();
                     this._move();
                 });
             });
         },
-        _move: function (num, callback) {
-
-            this._setTargetFloor();
-
-            //set callback of trigger floor
-            num ? (this.callbacks[num] = callback) : 1;
+        _move: function () {
 
             if (!this.nextFloor || this.status != 'stop') {
                 return;
@@ -120,33 +134,66 @@ define(function (require, exports, module) {
             var targetDis;
 
             this.moveTimmer = setInterval(Util.proxy(function () {
+
                 targetDis = (this.nextFloor - 1) * this.floorHeight;
+
                 //check the distance to stop elevator
                 if (Math.abs(targetDis - this.distance) < this.speed) {
+
                     this.distance = targetDis;
 
                     clearInterval(this.moveTimmer);
                     this.status = 'stop';
 
                     this._cancelTrigger(this.nextFloor);
-                    //this.cancelCall(this.currentFloor, this.moveDir);
+                    this.prevFloor = this.nextFloor;
 
+                    //clear the call class
+                    this.e.trigger('cancel-call', {
+                        floorNum: this.nextFloor,
+                        type: this.moveDir
+                    });
+
+                    //set the next step
                     if (this.targetFloors.length > 0) {
                         this._goon();
+
                     } else {
-                        if ( this.moveDir == 'up' ) {
-                            this._triggerCallList('up', 'down');
-                        } else if ( this.moveDir == 'down' ) {
-                            this._triggerCallList('down', 'up');
+                        if (this.moveDir == 'up') {
+                            this._triggerCallList('down');
+                        } else if (this.moveDir == 'down') {
+                            this._triggerCallList('up');
                         } else {
+                        }
+
+                        if (this.targetFloors.length > 0) {
+                            this._goon();
+
+                        } else {
+                            //if there is no floor to goon
+                            //need open the door...
+                            //clear the call class
+                            this.e.trigger('cancel-call', {
+                                floorNum: this.prevFloor,
+                                type: 'up'
+                            });
+                            this.e.trigger('cancel-call', {
+                                floorNum: this.prevFloor,
+                                type: 'down'
+                            });
+
+                            this.moveDir = '';
+                            this.openDoor(function () {
+                                this.closeDoor();
+                            });
                         }
                     }
 
-                    //this.nextFloor may be undefined
-                    try {
-                        this.callbacks[this.nextFloor].call(this);
-                    } catch (e) {
-                    }
+                    //clear the call class
+                    this.e.trigger('cancel-call', {
+                        floorNum: this.prevFloor,
+                        type: this.moveDir
+                    });
 
                     //update view
                     this.render();
@@ -154,6 +201,7 @@ define(function (require, exports, module) {
                     return;
                 }
 
+                //move it
                 if (targetDis > this.distance) {
                     this.distance += this.speed;
                 } else {
@@ -169,7 +217,7 @@ define(function (require, exports, module) {
             }, this), 50);
 
         },
-        _trigger: function (floorNum, callback) {
+        _addToTargetList: function (floorNum, callback, callbackPrev) {
 
             if (!Util.isNumber(floorNum)) {
                 return;
@@ -191,34 +239,41 @@ define(function (require, exports, module) {
             //high light the panel
             this.panelViewNode.find('li').eq(floorNum - 1).addClass('active');
 
-            //move elevator
-            this._move(floorNum, callback);
+            callbackPrev ? callbackPrev.call(this) : 1;
+
+            this._setTargetFloor();
+
+            callback ? callback.call(this) : 1;
+
+            return this;
+        },
+        //same as tap down the button of elevator
+        _trigger: function (floorNum) {
+
+            this._addToTargetList(floorNum, function () {
+                this._move();
+            });
 
         },
         _cancelTrigger: function (floorNum) {
             Util.arrayRemove(this.targetFloors, floorNum);
 
-            //
             this.panelViewNode.find('li').eq(floorNum - 1).removeClass('active');
         },
-        _triggerCallList: function (type1, type2) {
+        _triggerCallList: function (type) {
+
+            //**********************************
+            // when reversal the direction
+            // we need clear the flag of current floor
+            // to avoid call current floor again
+            //**********************************
+            this.cancelCall(this.currentFloor, type);
+
             try {
-                if (this.calllist[type1].length < 1 && type2) {
-                    this.calllist[type2].sort(function (a, b) {
-                        return  a > b;
+                for (var i = this.calllist[type].length; i--;) {
+                    this._addToTargetList(this.calllist[type][i], false, function () {
+                        this.cancelCall(this.calllist[type][i], type);
                     });
-                    if (type2 == 'up') {
-                        this.go(this.calllist[type2][0]);
-                        this.cancelCall(this.calllist[type2][0], type2);
-                    } else if (type2 == 'down') {
-                        this.go(this.calllist[type2][this.calllist[type2].length - 1]);
-                        this.cancelCall(this.calllist[type2][this.calllist[type2].length - 1], type2);
-                    }
-                } else {
-                    for (var i = this.calllist[type1].length; i--;) {
-                        this.go(this.calllist[type1][i]);
-                        this.cancelCall(this.calllist[type1][i], type1);
-                    }
                 }
             } catch (e) {
 
@@ -236,7 +291,7 @@ define(function (require, exports, module) {
                     });
                 });
             } else {
-                this._trigger(floorNum);
+                this._addToTargetList(floorNum);
             }
         },
         openDoor: function (callback) {
@@ -267,8 +322,14 @@ define(function (require, exports, module) {
                 floorNum < this.currentFloor && type == 'down' && this.moveDir == 'down' ||
                 this.moveDir == '' && this.status == 'stop' ||
                 this.targetFloors.length < 1) {
-                this.go(floorNum);
-                this.cancelCall(floorNum, type);
+                this._addToTargetList(floorNum, false, function () {
+                    this.cancelCall(floorNum, type);
+                });
+                //first call & no target
+                if (this.moveDir == '' && this.status == 'stop' ||
+                    this.targetFloors.length == 1) {
+                    this._move();
+                }
             } else {
                 if (Util.arrayGetIndex(this.calllist[type], floorNum) == undefined) {
                     this.calllist[type].push(floorNum);
@@ -276,10 +337,6 @@ define(function (require, exports, module) {
             }
         },
         cancelCall: function (floorNum, type) {
-//            this.e.trigger('cancel-call', {
-//                floorNum: floorNum,
-//                type: type
-//            });
             Util.arrayRemove(this.calllist[type], floorNum);
         },
         render: function (node) {
@@ -314,6 +371,15 @@ define(function (require, exports, module) {
 
                 this.panelViewNode.on('click', Util.proxy(function (e) {
                     this.go($(e.target).html() * 1 || undefined);
+                }, this));
+
+                this.panelViewNode.on('dblclick', Util.proxy(function (e) {
+                    var floor = $(e.target).html() * 1;
+                    if (Util.arrayGetIndex(this.targetFloors, floor) !== undefined && !Util.arrayOnlyLast(this.targetFloors, floor, this.currentFloor, this.moveDir) && !Util.arrayOnlyFirst(this.targetFloors, floor, this.currentFloor, this.moveDir)) {
+                        console.log('cancel');
+                        this._cancelTrigger(floor);
+                        this._setTargetFloor();
+                    }
                 }, this));
 
             } else {

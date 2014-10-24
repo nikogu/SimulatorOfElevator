@@ -35,6 +35,32 @@ define(function (require, exports, module) {
             }
             return undefined;
         },
+        arrayOnlyFirst: function (arr, target, current, dir) {
+            if (Util.arrayGetIndex(arr, target) === undefined || dir != 'down') {
+                return false;
+            }
+            var t = [];
+            t = arr.filter(function (o) {
+                return o < current;
+            });
+            if (t.length <= 1 && t[0] && t[0] == target) {
+                return true;
+            }
+            return false;
+        },
+        arrayOnlyLast: function (arr, target, current, dir) {
+            if (Util.arrayGetIndex(arr, target) === undefined || dir != 'up') {
+                return false;
+            }
+            var t = [];
+            t = arr.filter(function (o) {
+                return o > current;
+            });
+            if (t.length <= 1 && t[0] && t[0] == target) {
+                return true;
+            }
+            return false;
+        },
         arrayRemove: function (arr, item) {
             var index = Util.arrayGetIndex(arr, item);
             if (index != undefined) {

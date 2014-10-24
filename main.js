@@ -21,6 +21,7 @@ seajs.use('./modules/elevatorControlCenter', function(ElevatorControlCenter) {
     var e = new ElevatorControlCenter({
 
     });
+    window.ele = e;
     e.render($('.wrapper'));
 
 });

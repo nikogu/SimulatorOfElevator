@@ -15,9 +15,14 @@ define(function (require, exports, module) {
     function ElevatorControlCenter() {
         this.floors = 10;
         this.elevatorsNum = 3;
+
         this.elevators = [];
+
         this.elevatorWidth = 36;
         this.elevatorheight = 40;
+
+        this.calllist = [];
+
         this.id = Math.floor(Math.random() * 4000) + Math.floor(Math.random() * 5000) + new Date().getTime();
 
         this._initElevator();
@@ -59,9 +64,9 @@ define(function (require, exports, module) {
 
             for (var i = this.elevators.length; i--;) {
                 html += '<div class="building">';
-                for (var j = this.floors; j--; ) {
+                for (var j = this.floors; j--;) {
                     html += '<div class="floor">';
-                    html += '<p class="num">'+(j+1)+'</p>'
+                    html += '<p class="num">' + (j + 1) + '</p>'
                     html += '<div class="door"></div>';
                     html += '<div class="cover"></div>';
                     html += '<div class="control">';
@@ -88,20 +93,26 @@ define(function (require, exports, module) {
             var buildingNode = this.viewNode.find('.building');
             for (var i = 0; i < this.elevators.length; i++) {
                 (function (i) {
+
                     that.elevators[i].render(buildingNode.eq(i));
-                    that.elevators[i].e.on('cancel-call', function(e, o) {
-                        buildingNode.eq(i).find('.floor').eq(that.floors-o.floorNum).find('.'+ $.trim(o.type)).removeClass('active');
+
+                    that.elevators[i].e.on('cancel-call', function (e, o) {
+                        if (Util.isNumber(o.floorNum) && o.type) {
+                            buildingNode.eq(i).find('.floor').eq(that.floors - o.floorNum).find('.' + $.trim(o.type)).removeClass('active');
+                        }
                     });
+
                     buildingNode.eq(i).find('.floor .up').on('click', function (e) {
                         var target = $(e.target),
-                            index = target.attr('data-index')*1;
+                            index = target.attr('data-index') * 1;
 
                         target.addClass('active');
                         that.elevators[i].call(index, 'up');
                     });
+
                     buildingNode.eq(i).find('.floor .down').on('click', function (e) {
                         var target = $(e.target),
-                            index = target.attr('data-index')*1;
+                            index = target.attr('data-index') * 1;
 
                         target.addClass('active');
                         that.elevators[i].call(index, 'down');
