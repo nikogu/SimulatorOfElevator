@@ -181,12 +181,12 @@ define(function (require, exports, module) {
             // we need clear the flag of current floor
             // to avoid call current floor again
             //**********************************
-            this.cancelCall(this.currentFloor, type);
+            //this.cancelCall(this.currentFloor, type);
 
             try {
                 for (var i = this.calllist[type].length; i--;) {
                     this._addToTargetList(this.calllist[type][i], false, function () {
-                        this.cancelCall(this.calllist[type][i], type);
+                        //this.cancelCall(this.calllist[type][i], type);
                     });
                 }
             } catch (e) {
@@ -229,10 +229,11 @@ define(function (require, exports, module) {
                         moveDir: this.moveDir
                     });
 
+                    this.status = 'stop';
+
                     this.distance = targetDis;
 
                     clearInterval(this.moveTimmer);
-                    this.status = 'stop';
 
                     this._cancelTrigger(this.nextFloor);
 
@@ -270,15 +271,16 @@ define(function (require, exports, module) {
                                 type: 'down'
                             });
 
-                            this.e.trigger('stop', {
-                                nextFloor: this.nextFloor,
-                                prevFloor: this.prevFloor,
-                                currentFloor: this.currentFloor,
-                                moveDir: this.moveDir
-                            });
-                            this.moveDir = '';
                             this.openDoor(function () {
-                                this.closeDoor();
+                                this.closeDoor(function() {
+                                    this.e.trigger('stop', {
+                                        nextFloor: this.nextFloor,
+                                        prevFloor: this.prevFloor,
+                                        currentFloor: this.currentFloor,
+                                        moveDir: this.moveDir
+                                    });
+                                    this.moveDir = '';
+                                });
                             });
                         }
                     }

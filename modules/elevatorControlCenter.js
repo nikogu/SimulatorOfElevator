@@ -78,6 +78,16 @@ define(function (require, exports, module) {
                     that.elevators[i].e.on('stop', function (e, o) {
                         that.clearCall(o.currentFloor, 'up');
                         that.clearCall(o.currentFloor, 'down');
+
+                        var status = true;
+                        that.elevators.forEach(function(item, index) {
+                            if ( item.status != 'stop' ) {
+                                status = false;
+                            }
+                        });
+                        if ( status ) {
+                            that._manageCall();
+                        }
                     });
 
                     buildingNode.find('.floor .up').on('click', Util.proxy(that.callElevator, that));
@@ -133,10 +143,9 @@ define(function (require, exports, module) {
                 elevator = that._selectElevator(that.calllist.up[i], 'up');
                 if (elevator) {
                     elevator._addToTargetList(that.calllist.up[i], false, function () {
-                        that._removeFromCallList(that.calllist.up[i], 'up');
+                        //that._removeFromCallList(that.calllist.up[i], 'up');
                     });
-                    if (elevator.moveDir == '' && elevator.status == 'stop' ||
-                        elevator.targetFloors.length == 1) {
+                    if (elevator.targetFloors.length == 1 && elevator.status == 'stop') {
                         elevator.move();
                     }
                 }
@@ -147,10 +156,9 @@ define(function (require, exports, module) {
                 elevator = that._selectElevator(that.calllist.down[j], 'down');
                 if (elevator) {
                     elevator._addToTargetList(that.calllist.down[j], false, function () {
-                        that._removeFromCallList(that.calllist.down[j], 'down');
+                        //that._removeFromCallList(that.calllist.down[j], 'down');
                     });
-                    if (elevator.moveDir == '' && elevator.status == 'stop' ||
-                        elevator.targetFloors.length == 1) {
+                    if (elevator.targetFloors.length == 1 && elevator.status == 'stop') {
                         elevator.move();
                     }
                 }
@@ -163,9 +171,14 @@ define(function (require, exports, module) {
     Util.method(ElevatorControlCenter, {
         clearCall: function (floorNum, moveDir) {
             var that = this;
+
             if ( !moveDir ) {
+                that.clearCall(floorNum, 'down');
+                that.clearCall(floorNum, 'up');
                 return;
             }
+
+            that._removeFromCallList(floorNum, moveDir);
             that.viewNode.find('.building').each(function (index, item) {
                 $(item).find('.floor').
                     eq(that.floors - floorNum).
